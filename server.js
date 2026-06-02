@@ -105,7 +105,12 @@ app.post('/api/tirage', (req, res) => {
   res.json({ success: true, winners, total: participants.length });
 });
 
-// ── Lots — lecture ──────────────────────────────────────────────
+// ── Lots publics (page inscription) ────────────────────────────
+app.get('/api/lots', (req, res) => {
+  res.json({ lots: loadLots() });
+});
+
+// ── Lots — lecture admin ────────────────────────────────────────
 app.get('/api/admin/lots', (req, res) => {
   const { key } = req.query;
   if (key !== (process.env.ADMIN_KEY || 'localease2026')) {
