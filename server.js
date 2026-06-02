@@ -6,9 +6,13 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const DB_FILE      = path.join(__dirname, 'participants.json');
-const WINNERS_FILE = path.join(__dirname, 'winners.json');
-const LOTS_FILE    = path.join(__dirname, 'lots.json');
+// Dossier persistant : volume Railway /data si dispo, sinon local
+const DATA_DIR = fs.existsSync('/data') ? '/data' : __dirname;
+const DB_FILE      = path.join(DATA_DIR, 'participants.json');
+const WINNERS_FILE = path.join(DATA_DIR, 'winners.json');
+const LOTS_FILE    = path.join(DATA_DIR, 'lots.json');
+
+console.log(`[storage] DATA_DIR = ${DATA_DIR}`);
 
 function loadParticipants() {
   if (!fs.existsSync(DB_FILE)) return [];
