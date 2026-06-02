@@ -25,6 +25,16 @@
     <div id="admin-panel">
       <div id="stats" class="stats-box">Chargement des statistiques…</div>
 
+      <!-- Gestion des lots -->
+      <div id="lots-section" style="margin-bottom:20px;">
+        <h2 style="font-size:16px;color:#053980;margin-bottom:10px;">🎁 Lots à gagner</h2>
+        <p style="font-size:13px;color:#666;margin-bottom:12px;">Le nombre de lots détermine le nombre de gagnants tirés au sort.</p>
+        <div id="lots-list"></div>
+        <button class="btn-secondary" id="btn-add-lot" style="margin-top:10px;font-size:14px;padding:10px 16px;">+ Ajouter un lot</button>
+        <button class="btn-primary" id="btn-save-lots" style="margin-top:10px;font-size:14px;padding:10px 16px;">💾 Enregistrer les lots</button>
+        <div id="lots-msg" style="margin-top:8px;font-size:13px;"></div>
+      </div>
+
       <button class="btn-primary" id="btn-tirage">🎲 Lancer le tirage au sort</button>
 
       <div id="winners-list"></div>
@@ -68,6 +78,7 @@
           showStats(data);
           allParticipants = data.participants || [];
           renderParticipants(allParticipants);
+          renderLotsForms(data.lots || []);
         } else if (res.status === 403) {
           showLoginMsg('Clé incorrecte.', 'error');
         } else {
@@ -90,9 +101,70 @@
     }
 
     function showStats(data) {
+      const nbLots = (data.lots || []).length;
       statsDiv.innerHTML = `👥 Participants inscrits : <strong>${data.total}</strong>
+        &nbsp;|&nbsp; 🎁 Lots configurés : <strong>${nbLots}</strong> (= ${nbLots} gagnant${nbLots > 1 ? 's' : ''})
         ${data.tirageEffectue ? ' &nbsp;|&nbsp; 🎲 Tirage effectué' : ''}`;
     }
+
+    // ── Gestion des lots ──────────────────────────────────────────
+    function renderLotsForms(lots) {
+      const container = document.getElementById('lots-list');
+      container.innerHTML = '';
+      if (!lots.length) { addLotRow(container, '', ''); return; }
+      lots.forEach(l => addLotRow(container, l.titre, l.description));
+    }
+
+    function addLotRow(container, titre, description) {
+      const div = document.createElement('div');
+      div.className = 'lot-row';
+      div.style.cssText = 'border:1px solid #e0e0e0;border-radius:10px;padding:12px;margin-bottom:10px;background:#fafafa;';
+      div.innerHTML = `
+        <div style="display:flex;gap:8px;align-items:center;margin-bottom:6px;">
+          <input type="text" class="lot-titre" placeholder="Nom du lot (ex: Casque de vélo)" value="${escapeHtml(titre)}"
+            style="flex:1;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:14px;" />
+          <button onclick="this.closest('.lot-row').remove()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#999;padding:4px 8px;" title="Supprimer">✕</button>
+        </div>
+        <textarea class="lot-desc" placeholder="Description du lot (optionnel)" rows="2"
+          style="width:100%;padding:8px 12px;border:1.5px solid #e0e0e0;border-radius:8px;font-size:13px;box-sizing:border-box;resize:vertical;">${escapeHtml(description)}</textarea>
+      `;
+      container.appendChild(div);
+    }
+
+    document.getElementById('btn-add-lot').addEventListener('click', () => {
+      addLotRow(document.getElementById('lots-list'), '', '');
+    });
+
+    document.getElementById('btn-save-lots').addEventListener('click', async () => {
+      const rows  = document.querySelectorAll('.lot-row');
+      const lots  = Array.from(rows).map(r => ({
+        titre:       r.querySelector('.lot-titre').value.trim(),
+        description: r.querySelector('.lot-desc').value.trim()
+      })).filter(l => l.titre);
+
+      const lotsMsg = document.getElementById('lots-msg');
+      try {
+        const res = await fetch('/api/admin/lots', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminKey, lots })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          lotsMsg.style.color = '#053980';
+          lotsMsg.textContent = `✅ ${data.lots.length} lot${data.lots.length > 1 ? 's' : ''} enregistré${data.lots.length > 1 ? 's' : ''}.`;
+          // Refresh stats
+          const sr = await fetch('/api/admin/stats?key=' + encodeURIComponent(adminKey));
+          if (sr.ok) showStats(await sr.json());
+        } else {
+          lotsMsg.style.color = '#e53935';
+          lotsMsg.textContent = data.error || 'Erreur lors de la sauvegarde.';
+        }
+      } catch(e) {
+        lotsMsg.style.color = '#e53935';
+        lotsMsg.textContent = 'Erreur de connexion.';
+      }
+    });
 
     // ── Tirage ────────────────────────────────────────────────────
     document.getElementById('btn-tirage').addEventListener('click', async () => {
@@ -116,7 +188,7 @@
             renderParticipants(allParticipants);
           }
         } else {
-          alert(data.message || 'Erreur lors du tirage.');
+          alert(data.error || data.message || 'Erreur lors du tirage.');
         }
       } catch (e) {
         alert('Erreur de connexion.');
@@ -128,15 +200,14 @@
         winnersDiv.innerHTML = '<p class="pending-msg">Aucun gagnant sélectionné.</p>';
         return;
       }
-      const ul = document.createElement('ul');
-      ul.className = 'winners-list';
+      let html = '<h2 style="margin:16px 0 8px;font-size:16px;color:#053980;">🏆 Gagnants</h2>';
+      html += '<ul class="winners-list">';
       winners.forEach((w, i) => {
-        const li = document.createElement('li');
-        li.innerHTML = `<span class="num">${i + 1}.</span> <strong>${escapeHtml(w.nom)}</strong> — ${escapeHtml(w.email)}`;
-        ul.appendChild(li);
+        const lotInfo = w.lot ? `<br><span style="font-size:12px;color:#053980;background:#e8f4fd;padding:2px 8px;border-radius:4px;margin-top:3px;display:inline-block;">🎁 ${escapeHtml(w.lot.titre)}</span>` : '';
+        html += `<li><span class="num">${i + 1}.</span> <strong>${escapeHtml(w.nom)}</strong> — ${escapeHtml(w.email)}${lotInfo}</li>`;
       });
-      winnersDiv.innerHTML = '<h2 style="margin:16px 0 8px;font-size:16px;color:#053980;">🏆 Gagnants</h2>';
-      winnersDiv.appendChild(ul);
+      html += '</ul>';
+      winnersDiv.innerHTML = html;
     }
 
     // ── Reset ─────────────────────────────────────────────────────

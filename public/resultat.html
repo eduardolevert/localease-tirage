@@ -132,13 +132,20 @@
         if (data.isWinner) {
           // Clear any pending refresh
           if (refreshTimer) clearTimeout(refreshTimer);
-
+          const lot = data.lot;
+          const lotHtml = lot
+            ? `<div style="background:#e8f4fd;border-radius:12px;padding:14px 18px;margin-top:14px;text-align:left;">
+                <p style="font-size:15px;font-weight:700;color:#053980;margin:0 0 4px;">🎁 Votre lot : ${escapeHtml(lot.titre)}</p>
+                ${lot.description ? `<p style="font-size:14px;color:#444;margin:0;">${escapeHtml(lot.description)}</p>` : ''}
+               </div>`
+            : '';
           container.innerHTML = `
             <span class="badge-winner">🏆 FÉLICITATIONS !</span>
             <p class="result-text" style="font-size:17px;font-weight:600;color:#053980;margin-top:8px;">
-              Vous êtes parmi les 10 gagnants !
+              Vous êtes parmi les gagnants !
             </p>
-            <p class="result-text">
+            ${lotHtml}
+            <p class="result-text" style="margin-top:12px;">
               Nous vous contacterons par email à<br/>
               <strong>${escapeHtml(email)}</strong>
             </p>
