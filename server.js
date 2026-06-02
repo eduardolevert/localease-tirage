@@ -137,31 +137,29 @@ app.get('/api/admin/export', (req, res) => {
 
   const participants = loadParticipants();
   const winners      = loadWinners();
-  const winnerEmails = new Set(winners.map(w => w.email));
+  const winnerMap    = new Map(winners.map(w => [w.email, w]));
 
-  // BOM UTF-8 pour Excel
-  const BOM = '\uFEFF';
-  const header = 'Nom;Email;Date inscription;Statut;Lot gagné\r\n';
+  const esc = v => `"${(v || '').replace(/"/g, '""')}"`;
+
+  const header = 'Prénom et Nom;Email;Date inscription;Statut;Lot gagné;Description lot\r\n';
   const rows = participants.map(p => {
-    const isWinner = winnerEmails.has(p.email);
-    const winner   = winners.find(w => w.email === p.email);
-    const lot      = winner && winner.lot ? winner.lot.titre : '';
-    const date     = new Date(p.inscrit_le).toLocaleDateString('fr-FR', {
+    const winner = winnerMap.get(p.email);
+    const date   = new Date(p.inscrit_le).toLocaleString('fr-FR', {
       day: '2-digit', month: '2-digit', year: 'numeric',
       hour: '2-digit', minute: '2-digit'
     });
-    const statut = isWinner ? 'Gagnant' : 'Participant';
-    // Échapper les champs pour CSV
-    const esc = v => `"${(v || '').replace(/"/g, '""')}"`;
-    return [esc(p.nom), esc(p.email), esc(date), esc(statut), esc(lot)].join(';');
+    const statut = winner ? 'Gagnant' : 'Participant';
+    const lot    = winner && winner.lot ? winner.lot.titre : '';
+    const desc   = winner && winner.lot && winner.lot.description ? winner.lot.description : '';
+    return [esc(p.nom), esc(p.email), esc(date), esc(statut), esc(lot), esc(desc)].join(';');
   }).join('\r\n');
 
-  const csv = BOM + header + rows;
-  const filename = `EFD2026_participants_${new Date().toISOString().slice(0,10)}.csv`;
+  const BOM      = '\uFEFF'; // UTF-8 BOM pour Excel
+  const filename = `EFD2026_inscrits_${new Date().toISOString().slice(0,10)}.csv`;
 
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-  res.send(csv);
+  res.send(BOM + header + rows);
 });
 
 
