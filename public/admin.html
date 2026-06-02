@@ -59,7 +59,27 @@
   </div>
 
   <script>
-    let adminKey = '';
+    let adminKey = sessionStorage.getItem('efd_admin_key') || '';
+
+    // Auto-login si clé déjà en session
+    if (adminKey) {
+      fetch('/api/admin/stats?key=' + encodeURIComponent(adminKey))
+        .then(res => {
+          if (res.ok) return res.json();
+          sessionStorage.removeItem('efd_admin_key');
+          adminKey = '';
+        })
+        .then(data => {
+          if (!data) return;
+          loginSection.style.display = 'none';
+          adminPanel.style.display = 'block';
+          showStats(data);
+          allParticipants = data.participants || [];
+          renderParticipants(allParticipants);
+          renderLotsForms(data.lots || []);
+        })
+        .catch(() => {});
+    }
 
     const loginSection = document.getElementById('login-section');
     const adminPanel = document.getElementById('admin-panel');
@@ -79,6 +99,7 @@
         const res = await fetch('/api/admin/stats?key=' + encodeURIComponent(key));
         if (res.ok) {
           adminKey = key;
+          sessionStorage.setItem('efd_admin_key', key);
           const data = await res.json();
           loginSection.style.display = 'none';
           adminPanel.style.display = 'block';
