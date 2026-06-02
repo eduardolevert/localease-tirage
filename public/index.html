@@ -192,7 +192,7 @@
           form.style.display = 'none';
           msgDiv.style.display = 'block';
           msgDiv.className = 'success-msg';
-          msgDiv.textContent = '🎉 Vous êtes inscrit(e) ! Bonne chance pour le tirage !';
+          msgDiv.innerHTML = '🎉 Vous êtes inscrit(e) ! Bonne chance pour le tirage !<br><br><span style="font-size:14px;color:#e65100;font-weight:600;">⚠️ Ne fermez pas cet onglet — votre résultat apparaîtra ici lors du tirage !</span>';
           localStorage.setItem('efd_email', email);
           launchConfetti(false);
         } else if (res.status === 409) {

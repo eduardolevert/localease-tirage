@@ -120,6 +120,25 @@
 
     let refreshTimer = null;
 
+    const linksHtml = `
+      <div style="margin-top:24px;border-top:1px solid #e0e0e0;padding-top:16px;">
+        <p style="font-size:14px;font-weight:700;color:#053980;margin:0 0 12px;">🔗 Découvrez nos partenaires :</p>
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <a href="https://leasing.localease.fr/la-chaine-ev" target="_blank"
+             style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#f0f8ff;border-radius:10px;text-decoration:none;color:#053980;font-size:14px;font-weight:600;border:1px solid #d0e8ff;">
+            ⚡ Localease x La Chaîne EV — Offres leasing
+          </a>
+          <a href="https://www.lachaineev.fr" target="_blank"
+             style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#f0f8ff;border-radius:10px;text-decoration:none;color:#053980;font-size:14px;font-weight:600;border:1px solid #d0e8ff;">
+            🌐 La Chaîne EV — Site officiel
+          </a>
+          <a href="https://www.instagram.com/localease_idf/" target="_blank"
+             style="display:flex;align-items:center;gap:10px;padding:12px 14px;background:#fff0f8;border-radius:10px;text-decoration:none;color:#c2185b;font-size:14px;font-weight:600;border:1px solid #ffd0e8;">
+            📸 Localease IDF — Instagram
+          </a>
+        </div>
+      </div>`;
+
     async function fetchResult() {
       try {
         const res = await fetch('/api/status/' + encodeURIComponent(email));
@@ -149,6 +168,7 @@
               Nous vous contacterons par email à<br/>
               <strong>${escapeHtml(email)}</strong>
             </p>
+            ${linksHtml}
           `;
           launchConfetti(true);
         } else if (data.tirageEffectue) {
@@ -158,6 +178,7 @@
             <span class="badge-loser">Merci d'avoir participé !</span>
             <p class="result-text">Peut-être la prochaine fois 😊</p>
             <p class="result-text">Continuez à suivre Localease et La Chaîne EV !</p>
+            ${linksHtml}
           `;
         } else {
           container.innerHTML = `
