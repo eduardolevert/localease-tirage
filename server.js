@@ -128,7 +128,43 @@ app.post('/api/admin/lots', (req, res) => {
   res.json({ success: true, lots: clean });
 });
 
-// ── Stats admin ─────────────────────────────────────────────────
+// ── Export participants CSV ──────────────────────────────────────
+app.get('/api/admin/export', (req, res) => {
+  const { key } = req.query;
+  if (key !== (process.env.ADMIN_KEY || 'localease2026')) {
+    return res.status(403).json({ error: 'Accès refusé' });
+  }
+
+  const participants = loadParticipants();
+  const winners      = loadWinners();
+  const winnerEmails = new Set(winners.map(w => w.email));
+
+  // BOM UTF-8 pour Excel
+  const BOM = '\uFEFF';
+  const header = 'Nom;Email;Date inscription;Statut;Lot gagné\r\n';
+  const rows = participants.map(p => {
+    const isWinner = winnerEmails.has(p.email);
+    const winner   = winners.find(w => w.email === p.email);
+    const lot      = winner && winner.lot ? winner.lot.titre : '';
+    const date     = new Date(p.inscrit_le).toLocaleDateString('fr-FR', {
+      day: '2-digit', month: '2-digit', year: 'numeric',
+      hour: '2-digit', minute: '2-digit'
+    });
+    const statut = isWinner ? 'Gagnant' : 'Participant';
+    // Échapper les champs pour CSV
+    const esc = v => `"${(v || '').replace(/"/g, '""')}"`;
+    return [esc(p.nom), esc(p.email), esc(date), esc(statut), esc(lot)].join(';');
+  }).join('\r\n');
+
+  const csv = BOM + header + rows;
+  const filename = `EFD2026_participants_${new Date().toISOString().slice(0,10)}.csv`;
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+  res.send(csv);
+});
+
+
 app.get('/api/admin/stats', (req, res) => {
   const { key } = req.query;
   if (key !== (process.env.ADMIN_KEY || 'localease2026')) {

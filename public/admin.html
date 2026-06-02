@@ -43,6 +43,13 @@
 
       <button class="btn-secondary" id="btn-reset">🔄 Réinitialiser tout</button>
 
+      <div style="margin-top:12px;text-align:center;">
+        <button class="btn-secondary" id="btn-export" style="background:#e8f4fd;color:#053980;border:1.5px solid #053980;">
+          📥 Exporter les inscrits (.csv / Excel)
+        </button>
+        <p style="font-size:12px;color:#888;margin-top:6px;">Fichier CSV avec nom, email, date, statut et lot gagné — s'ouvre directement dans Excel</p>
+      </div>
+
       <!-- Liste des inscrits -->
       <div id="participants-section" style="margin-top:28px;">
         <h2 style="font-size:16px;color:#053980;margin-bottom:12px;">👥 Liste des inscrits</h2>
@@ -209,6 +216,11 @@
       html += '</ul>';
       winnersDiv.innerHTML = html;
     }
+
+    // ── Export CSV ────────────────────────────────────────────────
+    document.getElementById('btn-export').addEventListener('click', () => {
+      window.location.href = '/api/admin/export?key=' + encodeURIComponent(adminKey);
+    });
 
     // ── Reset ─────────────────────────────────────────────────────
     document.getElementById('btn-reset').addEventListener('click', async () => {
