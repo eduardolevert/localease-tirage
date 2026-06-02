@@ -96,8 +96,8 @@
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         frames++;
         if (frames < maxFrames || loop) {
-          if (frames % 3 === 0) {
-            for (let i = 0; i < 5; i++) particles.push(createParticle());
+          if (frames % 6 === 0) {
+            for (let i = 0; i < 2; i++) particles.push(createParticle());
           }
         }
         particles.forEach((p, i) => {
