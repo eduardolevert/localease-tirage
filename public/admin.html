@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Administration — Tirage au sort</title>
+  <link rel="stylesheet" href="/styles.css" />
+  <style>
+    .card { max-width: 600px; }
+    #admin-panel { display: none; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <h1 style="margin-bottom:24px;">Administration — Tirage au sort</h1>
+
+    <!-- Login -->
+    <div id="login-section">
+      <input type="password" id="admin-key" placeholder="Clé admin" />
+      <button class="btn-primary" id="btn-login">Se connecter</button>
+      <div id="login-msg" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- Admin panel -->
+    <div id="admin-panel">
+      <div id="stats" class="stats-box">Chargement des statistiques…</div>
+
+      <button class="btn-primary" id="btn-tirage">🎲 Lancer le tirage au sort</button>
+
+      <div id="winners-list"></div>
+
+      <hr class="divider" />
+
+      <button class="btn-secondary" id="btn-reset">🔄 Réinitialiser tout</button>
+
+      <p style="text-align:center;margin-top:16px;">
+        <a id="download-link" class="download-link" href="#" target="_blank">⬇ Télécharger les statistiques (JSON)</a>
+      </p>
+    </div>
+  </div>
+
+  <script>
+    let adminKey = '';
+
+    const loginSection = document.getElementById('login-section');
+    const adminPanel = document.getElementById('admin-panel');
+    const loginMsg = document.getElementById('login-msg');
+    const statsDiv = document.getElementById('stats');
+    const winnersDiv = document.getElementById('winners-list');
+    const downloadLink = document.getElementById('download-link');
+
+    // ── Login ────────────────────────────────────────────────────
+    document.getElementById('btn-login').addEventListener('click', async () => {
+      const key = document.getElementById('admin-key').value.trim();
+      if (!key) {
+        showLoginMsg('Veuillez entrer la clé admin.', 'error');
+        return;
+      }
+      try {
+        const res = await fetch('/api/admin/stats?key=' + encodeURIComponent(key));
+        if (res.ok) {
+          adminKey = key;
+          const data = await res.json();
+          loginSection.style.display = 'none';
+          adminPanel.style.display = 'block';
+          showStats(data);
+          downloadLink.href = '/api/admin/stats?key=' + encodeURIComponent(adminKey);
+        } else if (res.status === 403) {
+          showLoginMsg('Clé incorrecte.', 'error');
+        } else {
+          showLoginMsg('Erreur serveur. Réessayez.', 'error');
+        }
+      } catch (e) {
+        showLoginMsg('Erreur de connexion.', 'error');
+      }
+    });
+
+    // Allow Enter key on password field
+    document.getElementById('admin-key').addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') document.getElementById('btn-login').click();
+    });
+
+    function showLoginMsg(msg, type) {
+      loginMsg.textContent = msg;
+      loginMsg.className = type === 'error' ? 'error-msg' : 'success-msg';
+      loginMsg.style.display = 'block';
+    }
+
+    function showStats(data) {
+      statsDiv.innerHTML = `👥 Participants inscrits : <strong>${data.total}</strong>
+        ${data.tirageEffectue ? ' &nbsp;|&nbsp; 🎲 Tirage effectué' : ''}`;
+    }
+
+    // ── Tirage ────────────────────────────────────────────────────
+    document.getElementById('btn-tirage').addEventListener('click', async () => {
+      if (!confirm('Êtes-vous sûr de vouloir lancer le tirage ?')) return;
+
+      try {
+        const res = await fetch('/api/tirage', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminKey })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          renderWinners(data.winners || []);
+          // Refresh stats
+          const sr = await fetch('/api/admin/stats?key=' + encodeURIComponent(adminKey));
+          if (sr.ok) showStats(await sr.json());
+        } else {
+          alert(data.message || 'Erreur lors du tirage.');
+        }
+      } catch (e) {
+        alert('Erreur de connexion.');
+      }
+    });
+
+    function renderWinners(winners) {
+      if (!winners.length) {
+        winnersDiv.innerHTML = '<p class="pending-msg">Aucun gagnant sélectionné.</p>';
+        return;
+      }
+      const ul = document.createElement('ul');
+      ul.className = 'winners-list';
+      winners.forEach((w, i) => {
+        const li = document.createElement('li');
+        li.innerHTML = `<span class="num">${i + 1}.</span> <strong>${escapeHtml(w.nom)}</strong> — ${escapeHtml(w.email)}`;
+        ul.appendChild(li);
+      });
+      winnersDiv.innerHTML = '<h2 style="margin:16px 0 8px;font-size:16px;color:#053980;">🏆 Gagnants</h2>';
+      winnersDiv.appendChild(ul);
+    }
+
+    // ── Reset ─────────────────────────────────────────────────────
+    document.getElementById('btn-reset').addEventListener('click', async () => {
+      if (!confirm('Voulez-vous vraiment réinitialiser toutes les données ?')) return;
+      if (!confirm('⚠️ CONFIRMATION FINALE — Cette action est irréversible. Continuer ?')) return;
+
+      try {
+        const res = await fetch('/api/admin/reset', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ adminKey })
+        });
+        const data = await res.json();
+        if (res.ok) {
+          winnersDiv.innerHTML = '';
+          statsDiv.innerHTML = '✅ Données réinitialisées. 0 participant.';
+          alert('Réinitialisation effectuée.');
+        } else {
+          alert(data.message || 'Erreur lors de la réinitialisation.');
+        }
+      } catch (e) {
+        alert('Erreur de connexion.');
+      }
+    });
+
+    function escapeHtml(str) {
+      return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>

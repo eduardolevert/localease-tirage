@@ -1,0 +1,4 @@
+node_modules/
+participants.json
+winners.json
+.env

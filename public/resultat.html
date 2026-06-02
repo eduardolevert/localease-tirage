@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Electric Fans Day 2026 — Résultat</title>
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <canvas id="confetti"></canvas>
+
+  <div class="card">
+    <div class="logo-container">
+      <img src="/images/localease-logo.jpeg" alt="Localease" />
+      <img src="/images/opsecure-logo.jpeg" alt="La Chaîne EV" />
+    </div>
+
+    <h1>Electric Fans Day 2026</h1>
+
+    <div id="result-container">
+      <p class="pending-msg">Chargement…</p>
+    </div>
+  </div>
+
+  <script>
+    // ── Confetti ────────────────────────────────────────────────
+    const canvas = document.getElementById('confetti');
+    const ctx = canvas.getContext('2d');
+    const colors = ['#053980', '#7FFFD4', '#ffffff', '#FFD700'];
+    let particles = [];
+    let animationId = null;
+
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    }
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+
+    function createParticle() {
+      return {
+        x: Math.random() * canvas.width,
+        y: -10,
+        r: Math.random() * 7 + 4,
+        color: colors[Math.floor(Math.random() * colors.length)],
+        speedY: Math.random() * 3 + 1.5,
+        speedX: (Math.random() - 0.5) * 2,
+        rotation: Math.random() * Math.PI * 2,
+        rotSpeed: (Math.random() - 0.5) * 0.15,
+        opacity: 1,
+        shape: Math.random() > 0.5 ? 'rect' : 'circle'
+      };
+    }
+
+    function drawParticle(p) {
+      ctx.save();
+      ctx.globalAlpha = p.opacity;
+      ctx.fillStyle = p.color;
+      ctx.translate(p.x, p.y);
+      ctx.rotate(p.rotation);
+      if (p.shape === 'rect') {
+        ctx.fillRect(-p.r, -p.r / 2, p.r * 2, p.r);
+      } else {
+        ctx.beginPath();
+        ctx.arc(0, 0, p.r / 2, 0, Math.PI * 2);
+        ctx.fill();
+      }
+      ctx.restore();
+    }
+
+    function launchConfetti(loop) {
+      if (animationId) cancelAnimationFrame(animationId);
+      particles = [];
+      let frames = 0;
+
+      function animate() {
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+        frames++;
+        if (frames % 2 === 0) {
+          for (let i = 0; i < 6; i++) particles.push(createParticle());
+        }
+        particles.forEach((p, i) => {
+          p.y += p.speedY;
+          p.x += p.speedX;
+          p.rotation += p.rotSpeed;
+          if (p.y > canvas.height) {
+            if (loop) {
+              particles[i] = createParticle();
+            } else {
+              p.opacity -= 0.05;
+            }
+          }
+          drawParticle(p);
+        });
+        particles = particles.filter(p => p.opacity > 0);
+        if (loop || particles.length > 0 || frames < 200) {
+          animationId = requestAnimationFrame(animate);
+        }
+      }
+      animate();
+    }
+
+    // ── Get email ────────────────────────────────────────────────
+    const params = new URLSearchParams(window.location.search);
+    const email = params.get('email') || localStorage.getItem('efd_email');
+    const container = document.getElementById('result-container');
+
+    if (!email) {
+      container.innerHTML = `
+        <p class="error-msg" style="font-size:15px;margin-top:0;">
+          Veuillez vous inscrire d'abord.
+        </p>
+        <p style="text-align:center;margin-top:12px;">
+          <a href="/">← Aller à l'inscription</a>
+        </p>
+      `;
+    } else {
+      fetchResult();
+    }
+
+    let refreshTimer = null;
+
+    async function fetchResult() {
+      try {
+        const res = await fetch('/api/status/' + encodeURIComponent(email));
+        if (!res.ok) {
+          container.innerHTML = `<p class="error-msg">Erreur lors de la vérification. Réessayez plus tard.</p>`;
+          return;
+        }
+        const data = await res.json();
+
+        if (data.isWinner) {
+          // Clear any pending refresh
+          if (refreshTimer) clearTimeout(refreshTimer);
+
+          container.innerHTML = `
+            <span class="badge-winner">🏆 FÉLICITATIONS !</span>
+            <p class="result-text" style="font-size:17px;font-weight:600;color:#053980;margin-top:8px;">
+              Vous êtes parmi les 10 gagnants !
+            </p>
+            <p class="result-text">
+              Nous vous contacterons par email à<br/>
+              <strong>${escapeHtml(email)}</strong>
+            </p>
+          `;
+          launchConfetti(true);
+        } else if (data.tirageEffectue) {
+          if (refreshTimer) clearTimeout(refreshTimer);
+
+          container.innerHTML = `
+            <span class="badge-loser">Merci d'avoir participé !</span>
+            <p class="result-text">Peut-être la prochaine fois 😊</p>
+            <p class="result-text">Continuez à suivre Localease et La Chaîne EV !</p>
+          `;
+        } else {
+          container.innerHTML = `
+            <p class="pending-msg" style="font-size:22px;margin:12px 0;">⏳</p>
+            <p class="pending-msg">Le tirage n'a pas encore eu lieu.</p>
+            <p class="pending-msg">Revenez bientôt !</p>
+            <p class="pending-msg" style="font-size:12px;margin-top:8px;">Actualisation automatique dans 30 secondes…</p>
+          `;
+          // Auto-refresh every 30 seconds
+          refreshTimer = setTimeout(fetchResult, 30000);
+        }
+      } catch (err) {
+        container.innerHTML = `<p class="error-msg">Erreur de connexion. Réessayez plus tard.</p>`;
+      }
+    }
+
+    function escapeHtml(str) {
+      return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+  </script>
+</body>
+</html>
