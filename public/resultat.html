@@ -68,15 +68,16 @@
       ctx.restore();
     }
 
-    function launchConfetti(loop) {
+    function launchConfetti() {
       if (animationId) cancelAnimationFrame(animationId);
       particles = [];
       let frames = 0;
+      const maxFrames = 600; // ~10 secondes à 60fps
 
       function animate() {
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         frames++;
-        if (frames % 4 === 0) {
+        if (frames < maxFrames && frames % 4 === 0) {
           for (let i = 0; i < 3; i++) particles.push(createParticle());
         }
         particles.forEach((p, i) => {
@@ -84,16 +85,12 @@
           p.x += p.speedX;
           p.rotation += p.rotSpeed;
           if (p.y > canvas.height) {
-            if (loop) {
-              particles[i] = createParticle();
-            } else {
-              p.opacity -= 0.05;
-            }
+            p.opacity -= 0.05;
           }
           drawParticle(p);
         });
         particles = particles.filter(p => p.opacity > 0);
-        if (loop || particles.length > 0 || frames < 200) {
+        if (particles.length > 0 || frames < maxFrames) {
           animationId = requestAnimationFrame(animate);
         }
       }
@@ -170,7 +167,7 @@
             </p>
             ${linksHtml}
           `;
-          launchConfetti(true);
+          launchConfetti();
         } else if (data.tirageEffectue) {
           if (refreshTimer) clearTimeout(refreshTimer);
 
