@@ -33,10 +33,12 @@
 
       <button class="btn-secondary" id="btn-reset">🔄 Réinitialiser tout</button>
 
-      <p style="text-align:center;margin-top:16px;">
-        <a id="download-link" class="download-link" href="#" target="_blank">⬇ Télécharger les statistiques (JSON)</a>
-      </p>
-    </div>
+      <!-- Liste des inscrits -->
+      <div id="participants-section" style="margin-top:28px;">
+        <h2 style="font-size:16px;color:#053980;margin-bottom:12px;">👥 Liste des inscrits</h2>
+        <input type="text" id="search-input" placeholder="🔍 Rechercher par nom ou email…" style="margin-bottom:12px;" oninput="filterParticipants()" />
+        <div id="participants-list"></div>
+      </div>
   </div>
 
   <script>
@@ -47,7 +49,7 @@
     const loginMsg = document.getElementById('login-msg');
     const statsDiv = document.getElementById('stats');
     const winnersDiv = document.getElementById('winners-list');
-    const downloadLink = document.getElementById('download-link');
+    let allParticipants = [];
 
     // ── Login ────────────────────────────────────────────────────
     document.getElementById('btn-login').addEventListener('click', async () => {
@@ -64,7 +66,8 @@
           loginSection.style.display = 'none';
           adminPanel.style.display = 'block';
           showStats(data);
-          downloadLink.href = '/api/admin/stats?key=' + encodeURIComponent(adminKey);
+          allParticipants = data.participants || [];
+          renderParticipants(allParticipants);
         } else if (res.status === 403) {
           showLoginMsg('Clé incorrecte.', 'error');
         } else {
@@ -104,9 +107,14 @@
         const data = await res.json();
         if (res.ok) {
           renderWinners(data.winners || []);
-          // Refresh stats
+          // Refresh stats + participants
           const sr = await fetch('/api/admin/stats?key=' + encodeURIComponent(adminKey));
-          if (sr.ok) showStats(await sr.json());
+          if (sr.ok) {
+            const sd = await sr.json();
+            showStats(sd);
+            allParticipants = sd.participants || [];
+            renderParticipants(allParticipants);
+          }
         } else {
           alert(data.message || 'Erreur lors du tirage.');
         }
@@ -145,6 +153,8 @@
         const data = await res.json();
         if (res.ok) {
           winnersDiv.innerHTML = '';
+          allParticipants = [];
+          renderParticipants([]);
           statsDiv.innerHTML = '✅ Données réinitialisées. 0 participant.';
           alert('Réinitialisation effectuée.');
         } else {
@@ -157,6 +167,49 @@
 
     function escapeHtml(str) {
       return (str || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+    }
+
+    // ── Participants list ─────────────────────────────────────────
+    function renderParticipants(list) {
+      const div = document.getElementById('participants-list');
+      if (!list.length) {
+        div.innerHTML = '<p class="pending-msg" style="font-size:14px;">Aucun inscrit pour le moment.</p>';
+        return;
+      }
+      const winners = Array.from(document.querySelectorAll('.winners-list li'))
+        .map(li => li.textContent);
+      let html = `<table style="width:100%;border-collapse:collapse;font-size:14px;">
+        <thead>
+          <tr style="background:#053980;color:white;">
+            <th style="padding:8px 10px;text-align:left;">#</th>
+            <th style="padding:8px 10px;text-align:left;">Nom</th>
+            <th style="padding:8px 10px;text-align:left;">Email</th>
+          </tr>
+        </thead><tbody>`;
+      list.forEach((p, i) => {
+        const bg = i % 2 === 0 ? '#f9f9f9' : 'white';
+        html += `<tr style="background:${bg};">
+          <td style="padding:7px 10px;color:#888;">${i + 1}</td>
+          <td style="padding:7px 10px;font-weight:500;">${escapeHtml(p.nom)}</td>
+          <td style="padding:7px 10px;color:#444;">${escapeHtml(p.email)}</td>
+        </tr>`;
+      });
+      html += '</tbody></table>';
+      html += `<p style="font-size:12px;color:#888;margin-top:8px;text-align:right;">${list.length} résultat${list.length > 1 ? 's' : ''}</p>`;
+      div.innerHTML = html;
+    }
+
+    function filterParticipants() {
+      const q = document.getElementById('search-input').value.trim().toLowerCase();
+      if (!q) {
+        renderParticipants(allParticipants);
+        return;
+      }
+      const filtered = allParticipants.filter(p =>
+        (p.nom || '').toLowerCase().includes(q) ||
+        (p.email || '').toLowerCase().includes(q)
+      );
+      renderParticipants(filtered);
     }
   </script>
 </body>
