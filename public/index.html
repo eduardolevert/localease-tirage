@@ -164,6 +164,24 @@
 
     // ── Auto-redirect if already registered ─────────────────────
     window.addEventListener('load', async () => {
+      // Vérifier si le tirage est déjà effectué
+      try {
+        const res = await fetch('/api/status/check-tirage');
+        if (res.ok) {
+          const data = await res.json();
+          if (data.tirageEffectue) {
+            document.getElementById('form-inscription').style.display = 'none';
+            const msg = document.getElementById('message');
+            msg.style.display = 'block';
+            msg.className = 'error-msg';
+            msg.style.cssText = 'display:block;background:#fff3e0;border-radius:12px;padding:16px;text-align:center;color:#e65100;font-size:15px;font-weight:600;';
+            msg.innerHTML = '⏰ Le tirage au sort est terminé.<br><span style="font-size:13px;font-weight:400;color:#555;">Les inscriptions sont closes.</span>';
+            return;
+          }
+        }
+      } catch(e) { /* silencieux */ }
+
+      // Redirect si déjà inscrit et tirage effectué
       const savedEmail = localStorage.getItem('efd_email');
       if (savedEmail) {
         try {

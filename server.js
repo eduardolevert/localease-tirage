@@ -59,6 +59,12 @@ app.post('/api/register', (req, res) => {
   res.json({ success: true, participant, isWinner: !!winner, lot: winner ? winner.lot : null });
 });
 
+// ── Vérifier si tirage effectué (public) ────────────────────────
+app.get('/api/status/check-tirage', (req, res) => {
+  const winners = loadWinners();
+  res.json({ tirageEffectue: winners.length > 0 });
+});
+
 // ── Statut participant ──────────────────────────────────────────
 app.get('/api/status/:email', (req, res) => {
   const email       = req.params.email.toLowerCase();
